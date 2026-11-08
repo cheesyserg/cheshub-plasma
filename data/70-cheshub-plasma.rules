@@ -1,0 +1,17 @@
+# cheshub-plasma — give the logged-in user access to the configuration
+# channel of supported devices (same rule as the ChesHub web app).
+# Installed to /usr/lib/udev/rules.d. After installing, run
+#   sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw
+# and re-plug the device (or its receiver).
+
+# TECKNET TK-GM012 (USB cable)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="248a", ATTRS{idProduct}=="5d2e", MODE="0660", TAG+="uaccess"
+# TECKNET TK-GM012 (2.4 GHz receiver)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="249a", ATTRS{idProduct}=="5c2f", MODE="0660", TAG+="uaccess"
+# iLovbee B75 (USB cable)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="01e7", MODE="0660", TAG+="uaccess"
+# iLovbee B75 (2.4 GHz receiver)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="01bb", MODE="0660", TAG+="uaccess"
+# iLovbee B75 (Bluetooth, enumerates as 046D:B35A; read-only, listed so the
+# module can explain that)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:046D:B35A.*", MODE="0660", TAG+="uaccess"

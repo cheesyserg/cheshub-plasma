@@ -1,0 +1,106 @@
+# Builds installable packages for Plasma 6 distributions and runs the protocol
+# tests on each. Every run uploads the packages as workflow artifacts; pushing
+# a tag like v0.1.0 also attaches them to a GitHub release.
+name: Build packages
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debian:
+    name: Debian 13 / Ubuntu (.deb)
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake extra-cmake-modules dpkg-dev file \
+            qt6-base-dev qt6-declarative-dev \
+            libkf6kcmutils-dev libkf6i18n-dev libkf6coreaddons-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack -G DEB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cheshub-plasma-deb
+          path: build/*.deb
+          if-no-files-found: error
+
+  fedora:
+    name: Fedora (.rpm)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          dnf install -y gcc-c++ cmake make rpm-build extra-cmake-modules \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kcmutils-devel kf6-ki18n-devel kf6-kcoreaddons-devel
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack -G RPM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cheshub-plasma-rpm
+          path: build/*.rpm
+          if-no-files-found: error
+
+  arch:
+    name: Arch Linux (.pkg.tar.zst)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git cmake extra-cmake-modules \
+            qt6-base qt6-declarative kcmutils ki18n kcoreaddons kirigami
+      - uses: actions/checkout@v4
+      - name: Build package (makepkg runs the tests in check())
+        run: |
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          cd packaging/arch
+          su builder -c "makepkg --noconfirm --nodeps --force"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cheshub-plasma-arch
+          path: packaging/arch/*.pkg.tar.zst
+          if-no-files-found: error
+
+  release:
+    name: Attach packages to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [debian, fedora, arch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
