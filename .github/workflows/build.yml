@@ -1,0 +1,133 @@
+# Builds installable packages for Plasma 6 distributions and runs the protocol
+# tests on each. Every run uploads the packages as workflow artifacts; pushing
+# a tag like v0.1.0 also attaches them to a GitHub release.
+name: Build packages
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debian:
+    name: Debian 13 / Ubuntu (.deb)
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake extra-cmake-modules dpkg-dev file \
+            qt6-base-dev qt6-declarative-dev \
+            libkf6kcmutils-dev libkf6i18n-dev libkf6coreaddons-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack -G DEB
+      - uses: actions/upload-artifact@v5
+        with:
+          name: cheshub-plasma-deb
+          path: build/*.deb
+          if-no-files-found: error
+
+  fedora-releases:
+    name: Fedora releases to build for
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    outputs:
+      releases: ${{ steps.r.outputs.releases }}
+    steps:
+      - id: r
+        # The current release and the one before it. The RPM pins the
+        # selinux-policy it was built against (as %selinux_requires does), so
+        # each Fedora release gets its own build.
+        run: |
+          . /etc/os-release
+          echo "releases=[\"$VERSION_ID\",\"$((VERSION_ID - 1))\"]" >> "$GITHUB_OUTPUT"
+
+  fedora:
+    name: Fedora ${{ matrix.release }} (.rpm)
+    needs: fedora-releases
+    runs-on: ubuntu-latest
+    container: fedora:${{ matrix.release }}
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.fedora-releases.outputs.releases) }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build dependencies
+        run: |
+          dnf install -y gcc-c++ cmake make rpm-build bzip2 extra-cmake-modules \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kcmutils-devel kf6-ki18n-devel kf6-kcoreaddons-devel \
+            selinux-policy-devel
+      - name: Configure
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          -DKDE_INSTALL_USE_QT_SYS_PATHS=ON -DBUILD_SELINUX=ON -DRPM_DIST=fc${{ matrix.release }}
+      - name: Build (includes the SELinux policy module)
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack -G RPM
+      - name: Show package metadata
+        run: |
+          rpm -qp --requires build/*.rpm
+          rpm -qlp build/*.rpm | grep -E 'selinux|batteryd'
+      - uses: actions/upload-artifact@v5
+        with:
+          name: cheshub-plasma-rpm-fc${{ matrix.release }}
+          path: build/*.rpm
+          if-no-files-found: error
+
+  arch:
+    name: Arch Linux (.pkg.tar.zst)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git cmake extra-cmake-modules \
+            qt6-base qt6-declarative kcmutils ki18n kcoreaddons kirigami
+      - uses: actions/checkout@v5
+      - name: Build package (makepkg runs the tests in check())
+        run: |
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          cd packaging/arch
+          su builder -c "makepkg --noconfirm --nodeps --force"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: cheshub-plasma-arch
+          path: packaging/arch/*.pkg.tar.zst
+          if-no-files-found: error
+
+  release:
+    name: Attach packages to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [debian, fedora, arch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

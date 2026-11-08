@@ -1,0 +1,27 @@
+[Unit]
+Description=ChesHub battery levels for supported mice and keyboards
+Documentation=https://github.com/cheesyserg/cheshub-plasma
+After=systemd-udevd.service
+
+[Service]
+ExecStart=@BATTERYD_PATH@
+Restart=on-failure
+RestartSec=5
+
+# Needs /dev/uhid (root-only) and the devices' hidraw nodes.
+#
+# No NoNewPrivileges=, and none of the options that imply it once
+# CAP_SYS_ADMIN is gone (SystemCallArchitectures=, RestrictAddressFamilies=,
+# RestrictNamespaces=, MemoryDenyWriteExecute=, LockPersonality=): with it,
+# SELinux (Fedora) cannot move the service into its normal service domain
+# and opening the hidraw nodes fails with "Permission denied".
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+# Root with no capabilities can only open device nodes root owns; hidraw
+# nodes can be owned by someone else (logind/uaccess, other udev rules).
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+
+[Install]
+WantedBy=multi-user.target

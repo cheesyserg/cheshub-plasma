@@ -1,0 +1,32 @@
+# Builds the checkout this file lives in (used by CI; also works locally:
+# `cd packaging/arch && makepkg -si`).
+pkgname=cheshub-plasma
+pkgver=0.3.0
+pkgrel=1
+pkgdesc="Plasma 6 System Settings module for TECKNET TK-GM012 mice and iLovbee B75 keyboards"
+arch=('x86_64')
+url="https://github.com/cheesyserg/cheshub-plasma"
+license=('GPL-3.0-or-later')
+depends=('kcmutils' 'ki18n' 'kcoreaddons' 'kirigami' 'qt6-base' 'qt6-declarative' 'systemd')
+makedepends=('cmake' 'extra-cmake-modules')
+install=cheshub-plasma.install
+options=('!debug')
+
+_src="$startdir/../.."
+
+build() {
+    cmake -S "$_src" -B build \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBATTERYD_INSTALL_DIR=lib/cheshub-plasma
+    cmake --build build
+}
+
+check() {
+    ctest --test-dir build --output-on-failure
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stop cheshub-batteryd when the package is removed (not on upgrade).
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ]; then
+    systemctl disable --now cheshub-batteryd.service || true
+fi
+exit 0

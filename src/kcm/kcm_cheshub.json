@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "cheesyserg"
+            }
+        ],
+        "Description": "Configure supported gaming mice and keyboards: TECKNET TK-GM012 and iLovbee B75",
+        "Icon": "input-mouse",
+        "License": "GPL-3.0-or-later",
+        "Name": "ChesHub Devices",
+        "Website": "https://github.com/cheesyserg/cheshub-plasma"
+    },
+    "X-KDE-Keywords": "ChesHub,TECKNET,TK-GM012,iLovbee,B75,gaming mouse,DPI,polling rate,report rate,mouse buttons,keyboard lighting,RGB,debounce,key remapping",
+    "X-KDE-System-Settings-Parent-Category": "input-devices",
+    "X-KDE-Weight": 60
+}

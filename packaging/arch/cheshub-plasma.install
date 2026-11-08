@@ -1,0 +1,17 @@
+post_install() {
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger --subsystem-match=hidraw --action=change 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable --now cheshub-batteryd.service 2>/dev/null || true
+}
+
+post_upgrade() {
+    udevadm control --reload-rules 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable cheshub-batteryd.service 2>/dev/null || true
+    systemctl restart cheshub-batteryd.service 2>/dev/null || true
+}
+
+pre_remove() {
+    systemctl disable --now cheshub-batteryd.service 2>/dev/null || true
+}

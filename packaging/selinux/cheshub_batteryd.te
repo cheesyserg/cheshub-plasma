@@ -1,0 +1,65 @@
+policy_module(cheshub_batteryd, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+# cheshub-batteryd reads the battery of supported mice and keyboards over
+# their hidraw nodes and mirrors it on a virtual HID device (/dev/uhid), so
+# UPower and Plasma's Power & Battery applet show it.
+#
+
+type cheshub_batteryd_t;
+type cheshub_batteryd_exec_t;
+init_daemon_domain(cheshub_batteryd_t, cheshub_batteryd_exec_t)
+
+type cheshub_batteryd_unit_file_t;
+# Fedora's policy names this systemd_unit_file; upstream refpolicy, init_unit_file.
+ifdef(`systemd_unit_file',`
+	systemd_unit_file(cheshub_batteryd_unit_file_t)
+',`
+	init_unit_file(cheshub_batteryd_unit_file_t)
+')
+
+# New domain: denials are logged but not enforced while the policy is
+# checked on real systems. Remove once the AVC log is clean.
+permissive cheshub_batteryd_t;
+
+########################################
+#
+# Local policy
+#
+
+# hidraw nodes can be owned by another user (uaccess); the unit keeps only
+# CAP_DAC_OVERRIDE (CapabilityBoundingSet=).
+allow cheshub_batteryd_t self:capability dac_override;
+
+# Messages on stderr go to the journal through the stream systemd hands over.
+init_use_fds(cheshub_batteryd_t)
+logging_send_syslog_msg(cheshub_batteryd_t)
+miscfiles_read_localization(cheshub_batteryd_t)
+
+# Find the devices: /sys/class/hidraw/*/device/{uevent,report_descriptor}.
+dev_read_sysfs(cheshub_batteryd_t)
+# Name a denial in its log message: /sys/fs/selinux/enforce.
+selinux_get_enforce_mode(cheshub_batteryd_t)
+
+# Open, lock and talk to the devices' hidraw nodes (reads, writes, feature
+# report ioctls, flock).
+dev_list_all_dev_nodes(cheshub_batteryd_t)
+dev_rw_generic_usb_dev(cheshub_batteryd_t)
+
+optional_policy(`
+	gen_require(`
+		type hidraw_device_t;
+	')
+	allow cheshub_batteryd_t hidraw_device_t:chr_file rw_chr_file_perms;
+')
+
+# Create the virtual battery devices.
+optional_policy(`
+	gen_require(`
+		type uhid_device_t;
+	')
+	allow cheshub_batteryd_t uhid_device_t:chr_file rw_chr_file_perms;
+')

@@ -1,0 +1,3 @@
+/usr/libexec/cheshub-batteryd	--	gen_context(system_u:object_r:cheshub_batteryd_exec_t,s0)
+
+/usr/lib/systemd/system/cheshub-batteryd\.service	--	gen_context(system_u:object_r:cheshub_batteryd_unit_file_t,s0)
