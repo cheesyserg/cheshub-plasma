@@ -15,7 +15,10 @@ ProtectHome=yes
 PrivateTmp=yes
 PrivateNetwork=yes
 NoNewPrivileges=yes
-CapabilityBoundingSet=
+# Root with no capabilities can only open device nodes root owns. hidraw
+# nodes can be owned by someone else (logind/uaccess, other udev rules), so
+# keep the one capability that lets it open them anyway.
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 LockPersonality=yes
