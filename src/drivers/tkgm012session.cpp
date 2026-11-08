@@ -70,6 +70,7 @@ Result TkGm012Session::transact(const Bytes &frameIn)
     frame.resize(m_outputSize, 0);
     const uint8_t cmd = frame[1];
 
+    hid::ExchangeLock lock(m_dev);
     m_dev.drain();
     Bytes last;
     for (int waitMs : {FirstWaitMs, RetryWaitMs}) {

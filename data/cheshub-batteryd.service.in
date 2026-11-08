@@ -1,0 +1,28 @@
+[Unit]
+Description=ChesHub battery levels for supported mice and keyboards
+Documentation=https://github.com/cheesyserg/cheshub-plasma
+After=systemd-udevd.service
+
+[Service]
+ExecStart=@BATTERYD_PATH@
+Restart=on-failure
+RestartSec=5
+
+# Needs /dev/uhid (root-only) and the devices' hidraw nodes; nothing else.
+DevicePolicy=closed
+DeviceAllow=/dev/uhid rw
+DeviceAllow=char-hidraw rw
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

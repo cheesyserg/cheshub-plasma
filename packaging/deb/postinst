@@ -1,8 +1,14 @@
 #!/bin/sh
-# Make the freshly installed udev rule apply to devices that are already
-# plugged in, so the module works without re-plugging.
+# Apply the udev rule to devices that are already plugged in, and start
+# cheshub-batteryd (device batteries in Power & Battery). Safe on upgrades
+# and in containers without a running systemd.
 if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload-rules || true
     udevadm trigger --subsystem-match=hidraw --action=change || true
+fi
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+    systemctl enable cheshub-batteryd.service >/dev/null 2>&1 || true
+    systemctl restart cheshub-batteryd.service || true
 fi
 exit 0

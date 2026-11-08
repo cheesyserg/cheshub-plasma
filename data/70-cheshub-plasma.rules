@@ -15,3 +15,8 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct
 # iLovbee B75 (Bluetooth, enumerates as 046D:B35A; read-only, listed so the
 # module can explain that)
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:046D:B35A.*", MODE="0660", TAG+="uaccess"
+
+# cheshub-batteryd's virtual battery devices carry an idle mouse/keyboard so
+# UPower picks the right icon. Keep that placeholder away from libinput, so it
+# never shows up as a second mouse or keyboard.
+SUBSYSTEM=="input", ATTRS{phys}=="cheshub-batteryd*", ENV{LIBINPUT_IGNORE_DEVICE}="1"

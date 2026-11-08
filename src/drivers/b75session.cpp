@@ -90,6 +90,7 @@ bool B75Session::open(const hid::NodeInfo &node)
 
 std::optional<Bytes> B75Session::read(uint8_t cmd, uint8_t sub, size_t length)
 {
+    hid::ExchangeLock lock(m_dev);
     if (m_link == Link::Wireless) {
         auto wl = wirelessCommand(cmd);
         return wirelessRead(wl ? *wl : cmd, length);
@@ -99,6 +100,7 @@ std::optional<Bytes> B75Session::read(uint8_t cmd, uint8_t sub, size_t length)
 
 bool B75Session::write(uint8_t cmd, uint8_t sub, const Bytes &data)
 {
+    hid::ExchangeLock lock(m_dev);
     if (m_link == Link::Wireless) {
         auto wl = wirelessCommand(cmd);
         if (!wl) {

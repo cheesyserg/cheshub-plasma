@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 cmake_minimum_required(VERSION 3.22)
-project(cheshub-plasma VERSION 0.1.3 LANGUAGES CXX)
+project(cheshub-plasma VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +9,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(BUILD_KCM "Build the Plasma 6 System Settings module (needs KF6)" ON)
 option(BUILD_CLI "Build the cheshubctl command-line tool" ON)
 option(BUILD_TESTING "Build the protocol unit tests" ON)
+option(BUILD_BATTERYD "Build cheshub-batteryd (device batteries in UPower / Power & Battery)" ON)
 
 if(BUILD_KCM)
     find_package(ECM 6.0 REQUIRED NO_MODULE)
@@ -30,6 +31,8 @@ if(BUILD_TESTING)
 endif()
 
 set(CMAKE_AUTOMOC ON)
+
+set(SYSTEMD_UNIT_DIR "lib/systemd/system" CACHE PATH "Where to install systemd units (relative to the prefix)")
 
 add_subdirectory(src)
 if(BUILD_TESTING)
@@ -55,14 +58,18 @@ set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SECTION "kde")
-set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/packaging/deb/postinst")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+    "${CMAKE_CURRENT_SOURCE_DIR}/packaging/deb/postinst"
+    "${CMAKE_CURRENT_SOURCE_DIR}/packaging/deb/prerm")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-or-later")
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
-set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/packaging/udev-reload.sh")
+set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/packaging/post-install.sh")
+set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/packaging/rpm-preun.sh")
 # Directories owned by the base system on Fedora.
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
-    /usr/lib/udev /usr/lib/udev/rules.d /usr/lib64/qt6 /usr/lib64/qt6/plugins
+    /usr/lib/udev /usr/lib/udev/rules.d /usr/lib/systemd /usr/lib/systemd/system
+    /usr/libexec /usr/lib64/libexec /usr/lib/libexec /usr/lib64/qt6 /usr/lib64/qt6/plugins
     /usr/lib64/qt6/plugins/plasma /usr/lib64/qt6/plugins/plasma/kcms
     /usr/lib64/qt6/plugins/plasma/kcms/systemsettings /usr/share/applications)
 include(CPack)

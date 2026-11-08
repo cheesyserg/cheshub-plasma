@@ -12,6 +12,7 @@
 #include <linux/hidraw.h>
 #include <poll.h>
 #include <sstream>
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
@@ -206,6 +207,19 @@ std::optional<Bytes> Device::getFeature(uint8_t reportId, size_t length)
     }
     buf.resize(size_t(n));
     return buf;
+}
+
+void Device::lock()
+{
+    if (m_fd < 0)
+        return;
+    while (::flock(m_fd, LOCK_EX) < 0 && errno == EINTR) { }
+}
+
+void Device::unlock()
+{
+    if (m_fd >= 0)
+        ::flock(m_fd, LOCK_UN);
 }
 
 void sleepMs(int ms)

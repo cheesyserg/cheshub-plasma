@@ -52,6 +52,47 @@ To publish a release with the packages attached, push a tag:
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
+## Battery in Power & Battery
+
+The package also installs **cheshub-batteryd**, a small system service that
+puts the battery level of a TK-GM012 (over its 2.4 GHz receiver) and an
+iLovbee B75 (cable or receiver) into the **Power & Battery** applet, next to
+other device batteries.
+
+The applet only shows batteries UPower knows, and UPower only learns them
+from the kernel. So the service reads the level over each device's own
+protocol once a minute and mirrors it on a small virtual HID device
+(`/dev/uhid`) that declares a battery. The kernel publishes that as a device
+battery (`/sys/class/power_supply/hid-cheshub-hidrawN-battery`), and UPower
+and the applet pick it up. The virtual device also carries an idle mouse or
+keyboard so the applet shows the right icon; the udev rule hides it from
+libinput, so it never appears as an extra input device.
+
+- If no reading arrives for 15 minutes (mouse switched off behind its
+  receiver), the battery is withdrawn instead of showing a stale level.
+- It opens the device only for each reading, and each exchange holds a lock
+  on the device, so it never collides with System Settings.
+- It runs as root because `/dev/uhid` is root-only, sandboxed by its systemd
+  unit to `/dev/uhid` and the hidraw nodes.
+
+The package enables and starts it. To check it, or turn it off:
+
+```bash
+systemctl status cheshub-batteryd
+```
+
+```bash
+journalctl -u cheshub-batteryd
+```
+
+```bash
+upower --dump | grep -A12 cheshub
+```
+
+```bash
+sudo systemctl disable --now cheshub-batteryd
+```
+
 ## Use
 
 1. Plug in the device, or its 2.4 GHz receiver.
@@ -107,9 +148,10 @@ src/devices/    Qt objects for QML; I/O runs on a worker thread per device
 src/kcm/        KQuickConfigModule, kcm_cheshub.json, ui/*.qml (Kirigami):
                   main.qml device list, DevicePage.qml shell,
                   MousePage/MouseArt, KeyboardPage/KeyboardArt (live preview)
+src/batteryd/   cheshub-batteryd: virtual HID battery for UPower
 src/tools/      cheshubctl
 tests/          QtTest checks against the captures in cheshub's docs
-data/           udev rule
+data/           udev rule, cheshub-batteryd systemd unit
 packaging/      install scripts and the Arch PKGBUILD
 ```
 

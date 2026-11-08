@@ -55,10 +55,33 @@ public:
     bool setFeature(const Bytes &report);
     std::optional<Bytes> getFeature(uint8_t reportId, size_t length);
 
+    // Exclusive advisory lock on the device node, held for one request/reply
+    // exchange. cheshub-batteryd and System Settings both talk to the same
+    // device; the lock keeps their exchanges from interleaving.
+    void lock();
+    void unlock();
+
 private:
     void setErrno(const char *what);
     int m_fd = -1;
     std::string m_error;
+};
+
+// Holds Device::lock() for a scope.
+class ExchangeLock
+{
+public:
+    explicit ExchangeLock(Device &dev)
+        : m_dev(dev)
+    {
+        m_dev.lock();
+    }
+    ~ExchangeLock() { m_dev.unlock(); }
+    ExchangeLock(const ExchangeLock &) = delete;
+    ExchangeLock &operator=(const ExchangeLock &) = delete;
+
+private:
+    Device &m_dev;
 };
 
 void sleepMs(int ms);
