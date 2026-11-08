@@ -1,0 +1,43 @@
+## <summary>ChesHub battery levels for supported mice and keyboards.</summary>
+
+########################################
+## <summary>
+##	Execute cheshub-batteryd in the cheshub_batteryd domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition.
+##	</summary>
+## </param>
+#
+interface(`cheshub_batteryd_domtrans',`
+	gen_require(`
+		type cheshub_batteryd_t, cheshub_batteryd_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, cheshub_batteryd_exec_t, cheshub_batteryd_t)
+')
+
+########################################
+## <summary>
+##	Execute cheshub-batteryd's unit file with systemctl.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`cheshub_batteryd_systemctl',`
+	gen_require(`
+		type cheshub_batteryd_t, cheshub_batteryd_unit_file_t;
+	')
+
+	systemd_exec_systemctl($1)
+	systemd_read_fifo_file_passwd_run($1)
+	allow $1 cheshub_batteryd_unit_file_t:file read_file_perms;
+	allow $1 cheshub_batteryd_unit_file_t:service manage_service_perms;
+
+	ps_process_pattern($1, cheshub_batteryd_t)
+')

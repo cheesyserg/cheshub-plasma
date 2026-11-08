@@ -6,8 +6,18 @@ if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload-rules || true
     udevadm trigger --subsystem-match=hidraw --action=change || true
 fi
-# SELinux: make sure the service binary carries the label of a program
-# (bin_t), so systemd starts it in the normal service domain.
+# SELinux policy module for cheshub-batteryd (Fedora builds ship it), installed
+# the way %selinux_modules_install does: priority 200, then load the policy
+# if SELinux is enabled.
+MODULE=/usr/share/selinux/packages/targeted/cheshub_batteryd.pp.bz2
+if [ -e "$MODULE" ] && command -v semodule >/dev/null 2>&1; then
+    semodule -n -s targeted -X 200 -i "$MODULE" || true
+    if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
+        load_policy || true
+    fi
+fi
+# Relabel the installed files (as %selinux_relabel_post does), so the service
+# binary gets cheshub_batteryd_exec_t and systemd starts it in its domain.
 if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled && command -v restorecon >/dev/null 2>&1; then
     restorecon -F /usr/libexec/cheshub-batteryd /usr/lib/systemd/system/cheshub-batteryd.service \
         /usr/lib/udev/rules.d/70-cheshub-plasma.rules 2>/dev/null || true

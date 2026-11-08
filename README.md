@@ -95,15 +95,34 @@ sudo systemctl disable --now cheshub-batteryd
 
 ### SELinux and AppArmor
 
-- **SELinux** (Fedora, RHEL, openSUSE Tumbleweed): cheshub-batteryd ships no
-  policy of its own. It runs as a program in `/usr/libexec` without
-  `NoNewPrivileges=`, so systemd starts it in `unconfined_service_t`, the
-  domain for services without a policy, which may open `/dev/uhid` and the
-  hidraw nodes. With `NoNewPrivileges=` (or any option that implies it, such
-  as `SystemCallFilter=` or `MemoryDenyWriteExecute=`), or with the binary
-  under `/usr/lib64`, it stays in a domain that is denied the devices. A test
-  (`batteryd_unit`) fails the build if the unit regains any of those; the
-  install script also runs `restorecon` on the installed files.
+- **SELinux** (Fedora): the Fedora RPMs ship a policy module,
+  `cheshub_batteryd`, in `packaging/selinux/` (`.te`, `.fc`, `.if`). It
+  confines the service in its own domain, `cheshub_batteryd_t`, entered from
+  its labelled binary (`cheshub_batteryd_exec_t`), and allows only what it
+  does: read the hidraw list in sysfs, open and lock the hidraw nodes, open
+  `/dev/uhid`, and log. It is built against each Fedora release's
+  `selinux-policy-devel` and installed the way Fedora's `%selinux_*` macros
+  do: `/usr/share/selinux/packages/targeted/cheshub_batteryd.pp.bz2`, loaded
+  at priority 200 with `semodule`, files relabelled, removed on uninstall;
+  the RPM requires the `selinux-policy` it was built against, so there is one
+  RPM per Fedora release (`.fc<N>`).
+
+  **The domain starts permissive** (`permissive cheshub_batteryd_t;`): only
+  this service, the rest of the system stays enforcing. Anything the policy
+  missed is logged, not blocked. Once this shows nothing for the service, the
+  next release removes that line and the domain is enforced:
+
+  ```bash
+  sudo ausearch -m avc -c cheshub-battery -ts boot
+  ```
+
+  ```bash
+  ps -eZ | grep cheshub
+  ```
+
+  The second should show `cheshub_batteryd_t`. The unit keeps away from
+  `NoNewPrivileges=` and the options that imply it (a test checks this),
+  since they can stop systemd from entering the domain.
 - **AppArmor** (Debian, Ubuntu, openSUSE Leap): it only confines programs
   that have a profile. Neither the service nor System Settings has one, so
   nothing is restricted and nothing needs setting up.
@@ -180,7 +199,7 @@ src/batteryd/   cheshub-batteryd: virtual HID battery for UPower
 src/tools/      cheshubctl
 tests/          QtTest checks against the captures in cheshub's docs
 data/           udev rule, cheshub-batteryd systemd unit
-packaging/      install scripts and the Arch PKGBUILD
+packaging/      install scripts, the Arch PKGBUILD, selinux/ policy module
 ```
 
 The module's metadata is `src/kcm/kcm_cheshub.json`, named after the plugin

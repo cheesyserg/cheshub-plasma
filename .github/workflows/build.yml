@@ -41,28 +41,55 @@ jobs:
           path: build/*.deb
           if-no-files-found: error
 
-  fedora:
-    name: Fedora (.rpm)
+  fedora-releases:
+    name: Fedora releases to build for
     runs-on: ubuntu-latest
     container: fedora:latest
+    outputs:
+      releases: ${{ steps.r.outputs.releases }}
+    steps:
+      - id: r
+        # The current release and the one before it. The RPM pins the
+        # selinux-policy it was built against (as %selinux_requires does), so
+        # each Fedora release gets its own build.
+        run: |
+          . /etc/os-release
+          echo "releases=[\"$VERSION_ID\",\"$((VERSION_ID - 1))\"]" >> "$GITHUB_OUTPUT"
+
+  fedora:
+    name: Fedora ${{ matrix.release }} (.rpm)
+    needs: fedora-releases
+    runs-on: ubuntu-latest
+    container: fedora:${{ matrix.release }}
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.fedora-releases.outputs.releases) }}
     steps:
       - uses: actions/checkout@v5
       - name: Install build dependencies
         run: |
-          dnf install -y gcc-c++ cmake make rpm-build extra-cmake-modules \
+          dnf install -y gcc-c++ cmake make rpm-build bzip2 extra-cmake-modules \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
-            kf6-kcmutils-devel kf6-ki18n-devel kf6-kcoreaddons-devel
+            kf6-kcmutils-devel kf6-ki18n-devel kf6-kcoreaddons-devel \
+            selinux-policy-devel
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
-      - name: Build
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          -DKDE_INSTALL_USE_QT_SYS_PATHS=ON -DBUILD_SELINUX=ON -DRPM_DIST=fc${{ matrix.release }}
+      - name: Build (includes the SELinux policy module)
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Package
         run: cd build && cpack -G RPM
+      - name: Show package metadata
+        run: |
+          rpm -qp --requires build/*.rpm
+          rpm -qlp build/*.rpm | grep -E 'selinux|batteryd'
       - uses: actions/upload-artifact@v5
         with:
-          name: cheshub-plasma-rpm
+          name: cheshub-plasma-rpm-fc${{ matrix.release }}
           path: build/*.rpm
           if-no-files-found: error
 
