@@ -9,8 +9,9 @@
 
 namespace cheshub {
 
-DeviceManager::DeviceManager(QObject *parent)
+DeviceManager::DeviceManager(const QString &kind, QObject *parent)
     : QObject(parent)
+    , m_kind(kind)
 {
     // hidraw nodes appear a moment before udev applies the access rule, so
     // wait a little after /dev changes.
@@ -55,16 +56,18 @@ void DeviceManager::rescan()
 
     for (const hid::NodeInfo &node : nodes) {
         const QString devnode = QString::fromStdString(node.devnode);
+        const bool mice = m_kind.isEmpty() || m_kind == QLatin1String("mouse");
+        const bool keyboards = m_kind.isEmpty() || m_kind == QLatin1String("keyboard");
         AbstractDevice *device = nullptr;
-        if (TkGm012Device::matches(node)) {
+        if (mice && TkGm012Device::matches(node)) {
             present.insert(devnode);
             if (!known(devnode))
                 device = new TkGm012Device(node, this);
-        } else if (B75Device::matches(node)) {
+        } else if (keyboards && B75Device::matches(node)) {
             present.insert(devnode);
             if (!known(devnode))
                 device = new B75Device(node, this);
-        } else if (B75Session::linkFor(node) == B75Session::Link::Bluetooth) {
+        } else if (keyboards && B75Session::linkFor(node) == B75Session::Link::Bluetooth) {
             notices << QStringLiteral("iLovbee B75 is connected over Bluetooth, which is read-only on this keyboard. "
                                       "Connect the USB cable or the 2.4 GHz receiver to configure it.");
         }

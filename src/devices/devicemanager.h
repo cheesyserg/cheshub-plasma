@@ -21,9 +21,13 @@ class DeviceManager : public QObject
     // Devices that are present but cannot be configured, with the reason.
     Q_PROPERTY(QStringList notices READ notices NOTIFY devicesChanged)
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
+    Q_PROPERTY(QString kind READ kind CONSTANT)
 
 public:
-    explicit DeviceManager(QObject *parent = nullptr);
+    // kind: "mouse", "keyboard", or empty for every supported device.
+    explicit DeviceManager(const QString &kind = QString(), QObject *parent = nullptr);
+
+    QString kind() const { return m_kind; }
 
     QList<QObject *> devices() const;
     QStringList notices() const { return m_notices; }
@@ -39,6 +43,7 @@ Q_SIGNALS:
     void dirtyChanged();
 
 private:
+    QString m_kind;
     QList<AbstractDevice *> m_devices;
     QStringList m_notices;
     QFileSystemWatcher m_watcher;

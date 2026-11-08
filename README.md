@@ -4,8 +4,10 @@ A KDE Plasma 6 System Settings module for the devices supported by
 [ChesHub](https://github.com/cheesyserg/cheshub), talking to the hardware
 directly through `/dev/hidraw`. No browser and no background service.
 
-It appears under **System Settings → Input & Output → Input Devices → ChesHub
-Devices**.
+Each device type shows up where KDE keeps its own settings for it:
+
+- **System Settings → Input & Output → Mouse & Touchpad → ChesHub Mouse**
+- **System Settings → Input & Output → Keyboard → ChesHub Keyboard**
 
 | Device | Link | What you can change |
 |---|---|---|
@@ -56,8 +58,9 @@ git tag v0.1.0 && git push origin v0.1.0
 
 1. Plug in the device, or its 2.4 GHz receiver.
 2. Close the vendor utility or a ChesHub browser tab that has the device open.
-3. Open System Settings → Input Devices → ChesHub Devices. Each device found
-   gets a tab and is read on open.
+3. Open ChesHub Mouse (under Mouse & Touchpad) or ChesHub Keyboard (under
+   Keyboard). The device is read when the page opens; with two of the same
+   kind connected, a picker at the top switches between them.
 4. Change settings and press **Apply**. **Reset** reads the device again;
    **Defaults** loads the factory values into the page (written on Apply);
    **Factory Reset…** resets the device itself.
@@ -103,16 +106,20 @@ src/protocol/   byte-exact encoders/decoders (plain C++, no Qt)
 src/hid/        hidraw enumeration, report descriptor parser, I/O and ioctls
 src/drivers/    blocking sessions with the vendor's ack / retry / timing rules
 src/devices/    Qt objects for QML; I/O runs on a worker thread per device
-src/kcm/        KQuickConfigModule, kcm_cheshub.json, ui/*.qml (Kirigami)
+src/kcm/        KQuickConfigModule built as kcm_cheshub_mouse and kcm_cheshub_keyboard,
+                their .json metadata, ui/*.qml (Kirigami)
 src/tools/      cheshubctl
 tests/          QtTest checks against the captures in cheshub's docs
 data/           udev rule
 packaging/      install scripts and the Arch PKGBUILD
 ```
 
-The KCM's metadata is `src/kcm/kcm_cheshub.json`, named after the plugin
-target as `kcmutils_add_qml_kcm` expects, with
-`X-KDE-System-Settings-Parent-Category: input-devices`.
+The modules' metadata is `src/kcm/kcm_cheshub_mouse.json`
+(`X-KDE-System-Settings-Parent-Category: pointing-devices`, the Mouse &
+Touchpad group) and `src/kcm/kcm_cheshub_keyboard.json` (`keyboard`), named
+after the plugin targets as `kcmutils_add_qml_kcm` expects. Both groups sit
+under `input-devices` (Input & Output), next to KDE's own Mouse and Keyboard
+modules.
 
 ## License
 

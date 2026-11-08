@@ -7,7 +7,8 @@
 
 namespace cheshub {
 
-// System Settings → Input & Output → Input Devices → ChesHub Devices.
+// System Settings → Input & Output → Mouse & Touchpad → ChesHub Mouse, and
+// → Keyboard → ChesHub Keyboard. One class, built once per device kind.
 // Apply writes every changed device, Reset re-reads them from the hardware,
 // Defaults loads factory values into the page (written on Apply).
 class CheshubKcm : public KQuickConfigModule
