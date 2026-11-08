@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "b75device.h"
 
+#include <QHash>
+#include <QRectF>
 #include <QSettings>
 #include <QVariantMap>
 
@@ -390,6 +392,103 @@ void B75Device::setLayout(const QString &layout)
 
 // ------------------------------------------------------------------- keys
 
+// Keycap geometry for the line-art keyboard, ported from the web studio
+// (driver.js GRID / keyRect): a 75% board on a 50-unit grid in an 879 x 399
+// drawing. id -> column (u), row, width (u).
+namespace {
+struct Cap {
+    double x, row, w;
+};
+
+const QHash<int, Cap> &capGrid()
+{
+    static const QHash<int, Cap> grid = [] {
+        QHash<int, Cap> g;
+        auto key = [&](int id, double x, double row, double w = 1) { g.insert(id, {x, row, w}); };
+        auto run = [&](double row, int first, double x, int count) {
+            for (int i = 0; i < count; ++i)
+                key(first + i, x + i, row);
+        };
+        key(1, 0, 0);
+        run(0, 2, 1.25, 4);
+        run(0, 6, 5.5, 4);
+        run(0, 10, 9.75, 4);
+        key(14, 14, 0);
+        key(81, 15.25, 0);
+        run(1.25, 15, 0, 13);
+        key(28, 13, 1.25, 2);
+        key(29, 15.25, 1.25);
+        key(30, 0, 2.25, 1.5);
+        run(2.25, 31, 1.5, 12);
+        key(43, 13.5, 2.25, 1.5);
+        key(44, 15.25, 2.25);
+        key(45, 0, 3.25, 1.75);
+        run(3.25, 46, 1.75, 11);
+        key(57, 12.75, 3.25, 2.25);
+        key(80, 15.25, 3.25);
+        key(58, 0, 4.25, 2.25);
+        run(4.25, 59, 2.25, 10);
+        key(69, 12.25, 4.25, 1.75);
+        key(70, 14.25, 4.25);
+        key(71, 0, 5.25, 1.25);
+        key(72, 1.25, 5.25, 1.25);
+        key(73, 2.5, 5.25, 1.25);
+        key(74, 3.75, 5.25, 6.25);
+        key(75, 10, 5.25, 1.25);
+        key(76, 11.25, 5.25, 1.25);
+        key(77, 13.25, 5.25);
+        key(78, 14.25, 5.25);
+        key(79, 15.25, 5.25);
+        return g;
+    }();
+    return grid;
+}
+
+QRectF capRect(int id, Layout layout)
+{
+    constexpr double U = 50, X0 = 36, Y0 = 53, Gap = 3.2;
+    if (layout == Layout::Knob) {
+        // Knob in End's slot at keycap size; turn left / right above it.
+        switch (id) {
+        case 82:
+            return QRectF(QPointF(800.6, 54.6), QPointF(847.4, 101.4));
+        case 83:
+            return QRectF(QPointF(800, 16), QPointF(821, 37));
+        case 84:
+            return QRectF(QPointF(827, 16), QPointF(848, 37));
+        default:
+            break;
+        }
+    }
+    const auto it = capGrid().constFind(id);
+    if (it == capGrid().constEnd())
+        return {};
+    return QRectF(X0 + it->x * U + Gap / 2, Y0 + it->row * U + Gap / 2, it->w * U - Gap, U - Gap);
+}
+
+QString capCaption(int id, const char *label, Layout layout)
+{
+    if (layout == Layout::Knob) {
+        if (id == 82)
+            return QString();
+        if (id == 83)
+            return QStringLiteral("\u21BA");
+        if (id == 84)
+            return QStringLiteral("\u21BB");
+    }
+    switch (id) {
+    case 29:
+        return QStringLiteral("Home");
+    case 44:
+        return QStringLiteral("PgUp");
+    case 80:
+        return QStringLiteral("PgDn");
+    default:
+        return QString::fromUtf8(label);
+    }
+}
+} // namespace
+
 QVariantList B75Device::keys() const
 {
     const auto hidden = hiddenKeys(m_layout);
@@ -398,11 +497,19 @@ QVariantList B75Device::keys() const
         const KeyDef &k = b75::keys()[i];
         if (hidden.count(k.id))
             continue;
+        const QRectF r = capRect(k.id, m_layout);
         QVariantMap m;
         m[QStringLiteral("id")] = k.id;
         m[QStringLiteral("label")] = QString::fromUtf8(k.label);
+        m[QStringLiteral("caption")] = capCaption(k.id, k.label, m_layout);
         m[QStringLiteral("type")] = typeName(m_assignments[i].type);
         m[QStringLiteral("text")] = describe(m_assignments[i]);
+        // Position in the 879 x 399 drawing.
+        m[QStringLiteral("x")] = r.x();
+        m[QStringLiteral("y")] = r.y();
+        m[QStringLiteral("w")] = r.width();
+        m[QStringLiteral("h")] = r.height();
+        m[QStringLiteral("knob")] = m_layout == Layout::Knob && k.id >= 82 && k.id <= 84;
         out << m;
     }
     return out;

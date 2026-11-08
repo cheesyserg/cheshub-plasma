@@ -12,36 +12,36 @@ ColumnLayout {
     id: page
 
     required property var device
+    // Content keeps a readable width in a maximized window.
+    readonly property real contentWidth: Math.min(width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 50)
 
-    spacing: Kirigami.Units.largeSpacing
+    spacing: Kirigami.Units.largeSpacing * 2
 
     DeviceHeader {
-        Layout.fillWidth: true
-        Layout.margins: Kirigami.Units.largeSpacing
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: Kirigami.Units.largeSpacing
+        device: page.device
+    }
+
+    MouseArt {
+        id: art
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        enabled: page.device.ready && !page.device.busy
         device: page.device
     }
 
     Kirigami.FormLayout {
-        Layout.fillWidth: true
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
         enabled: page.device.ready && !page.device.busy
 
-        // ------------------------------------------------------- performance
+        // ---------------------------------------------------------------- DPI
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18nc("@title:group", "Performance")
-        }
-
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18nc("@label:listbox", "Report rate:")
-            model: page.device.rates
-            displayText: i18nc("@item:inlistbox polling rate", "%1 Hz", page.device.rate)
-            currentIndex: page.device.rates.indexOf(page.device.rate)
-            delegate: QQC2.ItemDelegate {
-                required property int modelData
-                width: ListView.view.width
-                text: i18nc("@item:inlistbox polling rate", "%1 Hz", modelData)
-            }
-            onActivated: index => page.device.rate = page.device.rates[index]
+            Kirigami.FormData.label: i18nc("@title:group", "Sensitivity")
         }
 
         QQC2.SpinBox {
@@ -57,18 +57,17 @@ ColumnLayout {
             delegate: RowLayout {
                 id: stage
                 required property int index
-                readonly property bool inUse: index < page.device.stageCount
                 readonly property int dpi: page.device.dpi[index]
 
                 Kirigami.FormData.label: i18nc("@label DPI stage number", "Stage %1:", index + 1)
-                enabled: inUse
+                enabled: index < page.device.stageCount
                 spacing: Kirigami.Units.smallSpacing
 
                 QQC2.RadioButton {
                     checked: page.device.activeStage === stage.index
                     onToggled: page.device.activeStage = stage.index
                     QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.text: i18nc("@info:tooltip", "Active stage")
+                    QQC2.ToolTip.text: i18nc("@info:tooltip", "Make this the active stage")
                 }
 
                 QQC2.Slider {
@@ -110,22 +109,34 @@ ColumnLayout {
             text: i18n("The DPI button cycles through the stages in use. Values between 12000 and 13000 are skipped: the mouse cannot store them distinctly.")
         }
 
-        // ---------------------------------------------------------- buttons
+        QQC2.ComboBox {
+            Kirigami.FormData.label: i18nc("@label:listbox", "Report rate:")
+            model: page.device.rates
+            displayText: i18nc("@item:inlistbox polling rate", "%1 Hz", page.device.rate)
+            currentIndex: page.device.rates.indexOf(page.device.rate)
+            delegate: QQC2.ItemDelegate {
+                required property int modelData
+                width: ListView.view.width
+                text: i18nc("@item:inlistbox polling rate", "%1 Hz", modelData)
+            }
+            onActivated: index => page.device.rate = page.device.rates[index]
+        }
+
+        // ------------------------------------------- buttons (narrow windows)
         Kirigami.Separator {
+            visible: art.compact
             Kirigami.FormData.isSection: true
             Kirigami.FormData.label: i18nc("@title:group", "Buttons")
         }
 
         Repeater {
-            model: page.device.buttons
+            model: art.compact ? page.device.buttons : []
             delegate: QQC2.ComboBox {
                 id: binding
                 required property int index
                 required property var modelData
 
                 Kirigami.FormData.label: i18nc("@label:listbox button name", "%1:", modelData.label)
-                // A binding set by another tool (a macro, a keyboard shortcut)
-                // is kept as is until something else is chosen.
                 model: (modelData.custom ? [{ id: "custom", label: modelData.actionLabel }] : []).concat(page.device.actions)
                 textRole: "label"
                 valueRole: "id"
@@ -134,7 +145,7 @@ ColumnLayout {
             }
         }
 
-        // ------------------------------------------------------------ power
+        // ------------------------------------------------------------- power
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
             Kirigami.FormData.label: i18nc("@title:group", "Power")

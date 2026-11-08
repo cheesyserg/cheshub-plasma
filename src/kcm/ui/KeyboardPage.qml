@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// iLovbee B75: lighting effects (per-effect brightness, speed and palette),
-// debounce, sleep, layout and base-layer key remapping.
+// iLovbee B75: line-art keyboard (click a key to remap it), lighting effects
+// with per-effect brightness, speed and palette, debounce, sleep and layout.
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -11,17 +11,66 @@ ColumnLayout {
 
     required property var device
     readonly property var effectInfo: device.effects.find(e => e.hw === device.effect) || ({})
+    readonly property var remapped: device.keys.filter(k => k.type !== "factory")
+    // Content keeps a readable width in a maximized window.
+    readonly property real contentWidth: Math.min(width - Kirigami.Units.largeSpacing * 2, Kirigami.Units.gridUnit * 56)
 
-    spacing: Kirigami.Units.largeSpacing
+    spacing: Kirigami.Units.largeSpacing * 2
 
     DeviceHeader {
-        Layout.fillWidth: true
-        Layout.margins: Kirigami.Units.largeSpacing
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: Kirigami.Units.largeSpacing
         device: page.device
     }
 
+    KeyboardArt {
+        Layout.preferredWidth: page.contentWidth
+        Layout.preferredHeight: page.contentWidth * 399 / 879
+        Layout.alignment: Qt.AlignHCenter
+        device: page.device
+        onKeyClicked: key => keyDialog.openFor(key)
+    }
+
+    // Remapped keys, with a quick way back to the default.
+    Flow {
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        spacing: Kirigami.Units.smallSpacing
+        visible: page.remapped.length > 0
+
+        QQC2.Label {
+            height: resetAll.height
+            verticalAlignment: Text.AlignVCenter
+            rightPadding: Kirigami.Units.smallSpacing
+            text: i18nc("@label", "Remapped:")
+        }
+
+        Repeater {
+            model: page.remapped
+            delegate: Kirigami.Chip {
+                required property var modelData
+                text: i18nc("key → assignment", "%1 → %2", modelData.label, modelData.text)
+                closable: true
+                checkable: false
+                onClicked: keyDialog.openFor(modelData)
+                onRemoved: page.device.resetKey(modelData.id)
+            }
+        }
+
+        QQC2.Button {
+            id: resetAll
+            flat: true
+            icon.name: "edit-undo"
+            text: i18nc("@action:button", "Reset All Keys")
+            onClicked: page.device.resetAllKeys()
+        }
+    }
+
     Kirigami.FormLayout {
-        Layout.fillWidth: true
+        Layout.preferredWidth: page.contentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
         enabled: page.device.ready && !page.device.busy
 
         // ---------------------------------------------------------- lighting
@@ -110,10 +159,22 @@ ColumnLayout {
             text: i18n("Per-key colours for the Custom effect can be painted in the ChesHub web studio; this page keeps the colours already on the keyboard.")
         }
 
-        // ---------------------------------------------------------- settings
+        // ---------------------------------------------------------- keyboard
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
             Kirigami.FormData.label: i18nc("@title:group", "Keyboard")
+        }
+
+        QQC2.ComboBox {
+            Kirigami.FormData.label: i18nc("@label:listbox physical layout", "Top-right key:")
+            model: [
+                { value: "knob", text: i18nc("@item:inlistbox", "Rotary knob (retail B75)") },
+                { value: "end", text: i18nc("@item:inlistbox", "End key (no knob)") }
+            ]
+            textRole: "text"
+            valueRole: "value"
+            currentIndex: page.device.layout === "end" ? 1 : 0
+            onActivated: index => page.device.layout = model[index].value
         }
 
         QQC2.ComboBox {
@@ -130,97 +191,12 @@ ColumnLayout {
             onActivated: index => page.device.sleep = index
         }
 
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18nc("@label:listbox physical layout", "Top-right key:")
-            model: [
-                { value: "knob", text: i18nc("@item:inlistbox", "Rotary knob (retail B75)") },
-                { value: "end", text: i18nc("@item:inlistbox", "End key (no knob)") }
-            ]
-            textRole: "text"
-            valueRole: "value"
-            currentIndex: page.device.layout === "end" ? 1 : 0
-            onActivated: index => page.device.layout = model[index].value
-        }
-
-        // --------------------------------------------------------------- keys
-        Kirigami.Separator {
-            Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18nc("@title:group", "Key Mapping")
-        }
-
-        RowLayout {
-            Kirigami.FormData.label: i18nc("@label:textbox", "Find key:")
-            Kirigami.SearchField {
-                id: search
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
-            }
-            QQC2.Button {
-                icon.name: "edit-undo"
-                text: i18nc("@action:button", "Reset All Keys")
-                onClicked: page.device.resetAllKeys()
-            }
-        }
-    }
-
-    QQC2.Label {
-        Layout.fillWidth: true
-        Layout.leftMargin: Kirigami.Units.largeSpacing
-        Layout.rightMargin: Kirigami.Units.largeSpacing
-        wrapMode: Text.Wrap
-        font: Kirigami.Theme.smallFont
-        opacity: 0.8
-        text: i18n("Changes the base layer. The keyboard cannot report its key mapping, so assignments made here are remembered on this computer. The Fn layer keeps its factory functions.")
-    }
-
-    Kirigami.CardsLayout {
-        Layout.fillWidth: true
-        Layout.margins: Kirigami.Units.largeSpacing
-        enabled: page.device.ready && !page.device.busy
-        maximumColumnWidth: Kirigami.Units.gridUnit * 14
-        minimumColumnWidth: Kirigami.Units.gridUnit * 10
-
-        Repeater {
-            model: page.device.keys.filter(k => search.text === ""
-                || k.label.toLowerCase().includes(search.text.toLowerCase())
-                || k.text.toLowerCase().includes(search.text.toLowerCase()))
-            delegate: Kirigami.AbstractCard {
-                id: card
-                required property var modelData
-
-                contentItem: RowLayout {
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        QQC2.Label {
-                            text: card.modelData.label
-                            font.bold: true
-                        }
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            opacity: card.modelData.type === "factory" ? 0.6 : 1
-                            text: card.modelData.text
-                        }
-                    }
-                    QQC2.ToolButton {
-                        icon.name: "document-edit"
-                        display: QQC2.AbstractButton.IconOnly
-                        text: i18nc("@action:button", "Change %1", card.modelData.label)
-                        QQC2.ToolTip.visible: hovered
-                        QQC2.ToolTip.text: text
-                        onClicked: keyDialog.openFor(card.modelData)
-                    }
-                    QQC2.ToolButton {
-                        icon.name: "edit-undo"
-                        display: QQC2.AbstractButton.IconOnly
-                        visible: card.modelData.type !== "factory"
-                        text: i18nc("@action:button", "Restore default")
-                        QQC2.ToolTip.visible: hovered
-                        QQC2.ToolTip.text: text
-                        onClicked: page.device.resetKey(card.modelData.id)
-                    }
-                }
-            }
+        QQC2.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+            opacity: 0.8
+            text: i18n("Click a key on the drawing to remap it on the base layer; the Fn layer keeps its factory functions. The keyboard cannot report its mapping, so assignments made here are remembered on this computer.")
         }
     }
 
