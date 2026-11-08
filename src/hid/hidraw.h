@@ -86,4 +86,8 @@ private:
 
 void sleepMs(int ms);
 
+// What to check when opening a device is refused: the udev rule for a user,
+// SELinux or AppArmor for root (which file permissions do not stop).
+std::string accessDeniedHint();
+
 } // namespace cheshub::hid

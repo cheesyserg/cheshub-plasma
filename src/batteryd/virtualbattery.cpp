@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "virtualbattery.h"
 
+#include "../hid/hidraw.h"
+
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -116,7 +118,12 @@ bool VirtualBattery::create(Kind kind, const std::string &name, const std::strin
     destroy();
     m_fd = ::open("/dev/uhid", O_RDWR | O_CLOEXEC | O_NONBLOCK);
     if (m_fd < 0) {
-        m_error = std::string("open /dev/uhid: ") + std::strerror(errno);
+        const int err = errno;
+        m_error = std::string("open /dev/uhid: ") + std::strerror(err);
+        if (err == EACCES || err == EPERM)
+            m_error += " — " + hid::accessDeniedHint();
+        else if (err == ENOENT)
+            m_error += " — the uhid kernel module is not available";
         return false;
     }
     const Bytes rd = reportDescriptor(kind);

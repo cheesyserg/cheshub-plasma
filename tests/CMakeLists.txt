@@ -10,3 +10,9 @@ if(BUILD_BATTERYD)
     target_link_libraries(test_batteryd PRIVATE cheshub_batteryd_lib Qt6::Test)
     add_test(NAME batteryd COMMAND test_batteryd)
 endif()
+
+if(BUILD_BATTERYD)
+    add_test(NAME batteryd_unit
+             COMMAND ${CMAKE_COMMAND} -DUNIT=${PROJECT_BINARY_DIR}/src/cheshub-batteryd.service
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/check_unit.cmake)
+endif()

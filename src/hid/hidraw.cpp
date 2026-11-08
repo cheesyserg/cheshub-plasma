@@ -96,12 +96,34 @@ Device::~Device()
     close();
 }
 
+namespace {
+std::string firstLine(const char *path)
+{
+    std::ifstream in(path);
+    std::string line;
+    std::getline(in, line);
+    return line;
+}
+} // namespace
+
+std::string accessDeniedHint()
+{
+    if (::geteuid() != 0)
+        return "install the cheshub-plasma udev rule and re-plug the device";
+    // Root refused: file permissions are not it, a security module is.
+    if (firstLine("/sys/fs/selinux/enforce") == "1")
+        return "SELinux is enforcing and denied it; see: sudo ausearch -m avc -ts recent";
+    if (firstLine("/sys/module/apparmor/parameters/enabled") == "Y")
+        return "AppArmor may have denied it; see: sudo journalctl -k | grep DENIED";
+    return "check the device node's owner and permissions";
+}
+
 void Device::setErrno(const char *what)
 {
     const int err = errno;
     m_error = std::string(what) + ": " + std::strerror(err);
     if (err == EACCES || err == EPERM)
-        m_error += " — install the cheshub-plasma udev rule and re-plug the device";
+        m_error += " — " + accessDeniedHint();
     else if (err == EBUSY)
         m_error += " — another program is using the device";
 }

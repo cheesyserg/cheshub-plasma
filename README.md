@@ -93,6 +93,34 @@ upower --dump | grep -A12 cheshub
 sudo systemctl disable --now cheshub-batteryd
 ```
 
+### SELinux and AppArmor
+
+- **SELinux** (Fedora, RHEL, openSUSE Tumbleweed): cheshub-batteryd ships no
+  policy of its own. It runs as a program in `/usr/libexec` without
+  `NoNewPrivileges=`, so systemd starts it in `unconfined_service_t`, the
+  domain for services without a policy, which may open `/dev/uhid` and the
+  hidraw nodes. With `NoNewPrivileges=` (or any option that implies it, such
+  as `SystemCallFilter=` or `MemoryDenyWriteExecute=`), or with the binary
+  under `/usr/lib64`, it stays in a domain that is denied the devices. A test
+  (`batteryd_unit`) fails the build if the unit regains any of those; the
+  install script also runs `restorecon` on the installed files.
+- **AppArmor** (Debian, Ubuntu, openSUSE Leap): it only confines programs
+  that have a profile. Neither the service nor System Settings has one, so
+  nothing is restricted and nothing needs setting up.
+- System Settings itself runs as your user and opens the devices through the
+  udev rule's `uaccess` tag, so neither module affects it.
+
+If the service still logs "Permission denied", the message says whether
+SELinux or AppArmor is active and where to see the denial:
+
+```bash
+sudo ausearch -m avc -ts recent
+```
+
+```bash
+sudo journalctl -k | grep DENIED
+```
+
 ## Use
 
 1. Plug in the device, or its 2.4 GHz receiver.
