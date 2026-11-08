@@ -1,7 +1,7 @@
 # Builds the checkout this file lives in (used by CI; also works locally:
 # `cd packaging/arch && makepkg -si`).
 pkgname=cheshub-plasma
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="Plasma 6 System Settings module for TECKNET TK-GM012 mice and iLovbee B75 keyboards"
 arch=('x86_64')

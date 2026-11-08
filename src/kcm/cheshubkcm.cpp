@@ -8,15 +8,13 @@
 
 #include <QQmlEngine>
 
-// Built twice: kcm_cheshub_mouse (Mouse & Touchpad) and kcm_cheshub_keyboard
-// (Keyboard). CHESHUB_KIND and CHESHUB_JSON come from CMake.
-K_PLUGIN_CLASS_WITH_JSON(cheshub::CheshubKcm, CHESHUB_JSON)
+K_PLUGIN_CLASS_WITH_JSON(cheshub::CheshubKcm, "kcm_cheshub.json")
 
 namespace cheshub {
 
 CheshubKcm::CheshubKcm(QObject *parent, const KPluginMetaData &data)
     : KQuickConfigModule(parent, data)
-    , m_manager(new DeviceManager(QStringLiteral(CHESHUB_KIND), this))
+    , m_manager(new DeviceManager(this))
 {
     setButtons(Apply | Default);
 
