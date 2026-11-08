@@ -41,11 +41,11 @@ if(BUILD_BATTERYD)
     target_link_libraries(cheshub-batteryd PRIVATE cheshub_batteryd_lib)
     set_target_properties(cheshub-batteryd PROPERTIES AUTOMOC OFF)
 
-    if(DEFINED KDE_INSTALL_LIBEXECDIR)
-        set(BATTERYD_DIR ${KDE_INSTALL_LIBEXECDIR})
-    else()
-        set(BATTERYD_DIR ${CMAKE_INSTALL_LIBEXECDIR})
-    endif()
+    # /usr/libexec, not KDE's ${LIBDIR}/libexec: on Fedora a binary under
+    # /usr/lib64 is labelled as a library by SELinux, and systemd then
+    # cannot start it in the normal service domain.
+    set(BATTERYD_INSTALL_DIR "libexec" CACHE PATH "Where to install cheshub-batteryd (relative to the prefix)")
+    set(BATTERYD_DIR ${BATTERYD_INSTALL_DIR})
     install(TARGETS cheshub-batteryd RUNTIME DESTINATION ${BATTERYD_DIR})
     if(IS_ABSOLUTE "${BATTERYD_DIR}")
         set(BATTERYD_PATH "${BATTERYD_DIR}/cheshub-batteryd")
