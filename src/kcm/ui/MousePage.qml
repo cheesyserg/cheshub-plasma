@@ -73,15 +73,31 @@ DevicePage {
                             onMoved: page.device.setDpi(stage.index, page.device.snapDpi(value))
                         }
 
-                        QQC2.SpinBox {
-                            from: page.device.dpiMin
-                            to: page.device.dpiMax
-                            editable: true
-                            stepSize: value < 10000 ? 50 : (value < 13000 ? 100 : 1000)
-                            value: stage.dpi
-                            textFromValue: (v, locale) => i18nc("@item DPI value", "%1 DPI", v)
-                            valueFromText: (text, locale) => parseInt(text) || stage.dpi
-                            onValueModified: page.device.setDpi(stage.index, value)
+                        // Plain number field: nothing is reformatted or snapped
+                        // while typing. The value is applied (and rounded to
+                        // what the mouse can store) on Enter or when the field
+                        // loses focus.
+                        QQC2.TextField {
+                            id: dpiField
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                            horizontalAlignment: Text.AlignRight
+                            inputMethodHints: Qt.ImhDigitsOnly
+                            validator: IntValidator {
+                                bottom: 0
+                                top: page.device.dpiMax
+                            }
+                            text: stage.dpi
+                            onEditingFinished: {
+                                const v = parseInt(text);
+                                if (!isNaN(v))
+                                    page.device.setDpi(stage.index, v);
+                                text = Qt.binding(() => String(stage.dpi));
+                            }
+                            onActiveFocusChanged: if (!activeFocus) text = Qt.binding(() => String(stage.dpi))
+                        }
+
+                        QQC2.Label {
+                            text: i18nc("@label unit after a DPI value", "DPI")
                         }
 
                         ColorSwatch {
