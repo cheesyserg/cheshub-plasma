@@ -63,28 +63,44 @@ struct Tracked {
     Clock::time_point nextPoll = Clock::now();
     Clock::time_point lastGood = Clock::now();
     bool everRead = false;
+    std::string lastWhy = "-"; // forces the first log line
 };
 
-// One battery read; nothing when the device does not answer or reports no
-// level (asleep, switched off behind its receiver).
-std::optional<Reading> readBattery(const Tracked &t)
+// One battery read. On failure `why` says what happened, with the raw
+// bytes the device sent, so the journal shows why nothing was published.
+struct Attempt {
+    std::optional<Reading> reading;
+    std::string why;
+};
+
+Attempt readBattery(const Tracked &t)
 {
     if (t.kind == batteryd::Kind::Mouse) {
         TkGm012Session s;
         if (!s.open(t.node))
-            return std::nullopt;
-        auto info = s.readInfo();
+            return {std::nullopt, "cannot open " + t.node.devnode + ": " + s.error()};
+        const Result r = s.transact(tkgm012::buildRead(tkgm012::Info));
+        if (!r.ok)
+            return {std::nullopt, "info read (0x10) failed: " + r.error};
+        if (r.silent)
+            return {std::nullopt, "no answer to the info read (0x10); mouse asleep or switched off?"};
+        auto info = tkgm012::parseInfo(r.reply);
         if (!info || !info->battery)
-            return std::nullopt;
-        return Reading{*info->battery, info->charging};
+            return {std::nullopt, "info reply has no battery level: " + toHex(r.reply, 16)};
+        return {Reading{*info->battery, info->charging}, {}};
     }
     B75Session s;
-    if (!s.open(t.node) || !s.keyboardOnline())
-        return std::nullopt;
-    auto power = s.readPower();
+    if (!s.open(t.node))
+        return {std::nullopt, "cannot open " + t.node.devnode + ": " + s.error()};
+    if (!s.keyboardOnline())
+        return {std::nullopt, "keyboard asleep or not linked to its receiver"};
+    auto raw = s.read(b75::GetPower, 0, 2);
+    if (!raw)
+        return {std::nullopt, "power read (0x87) failed: " + s.error()};
+    auto power = b75::parsePower(*raw);
     if (!power || !power->level)
-        return std::nullopt;
-    return Reading{*power->level, power->charging};
+        return {std::nullopt, "power reply has no battery level: " + toHex(*raw)};
+    return {Reading{*power->level, power->charging}, {}};
 }
 
 std::optional<std::pair<batteryd::Kind, std::string>> classify(const hid::NodeInfo &node)
@@ -129,7 +145,13 @@ void scan(std::map<std::string, std::unique_ptr<Tracked>> &tracked)
 void pollDevice(Tracked &t)
 {
     const auto now = Clock::now();
-    auto reading = readBattery(t);
+    const Attempt attempt = readBattery(t);
+    const auto &reading = attempt.reading;
+    // Log each new reason once, and the first reading after a failure.
+    if (attempt.why != t.lastWhy) {
+        log(t.name + ": " + (reading ? "battery " + std::to_string(reading->level) + "%" : attempt.why));
+        t.lastWhy = attempt.why;
+    }
     if (reading) {
         t.lastGood = now;
         t.everRead = true;

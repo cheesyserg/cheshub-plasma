@@ -71,6 +71,9 @@ static void readMouse(const hid::NodeInfo &n)
         std::printf("  error: %s\n", s.error().c_str());
         return;
     }
+    const Result raw = s.transact(tkgm012::buildRead(tkgm012::Info));
+    std::printf("  [info reply %s]\n", raw.ok && !raw.silent ? toHex(raw.reply, 16).c_str()
+                                                             : (raw.silent ? "no answer" : raw.error.c_str()));
     TkGm012Session::State st;
     const bool ok = s.readAll(st);
     if (!st.info) {
@@ -119,8 +122,13 @@ static void readKeyboard(const hid::NodeInfo &n)
     std::printf("  effect %s, brightness %d/4, speed %d/4, colour %s\n", e ? e->name : "?", cur.brightness, cur.speed,
                 cur.colorful ? "colourful" : std::to_string(cur.slot + 1).c_str());
     std::printf("  debounce %s, sleep %s\n", b75::debounceOptions()[st.debounce].name, b75::sleepOptions()[st.sleep].name);
-    if (auto p = s.readPower())
-        std::printf("  battery %s%s\n", p->level ? (std::to_string(*p->level) + "%").c_str() : "n/a", p->charging ? " (charging)" : "");
+    if (auto raw = s.read(b75::GetPower, 0, 2)) {
+        auto p = b75::parsePower(*raw);
+        std::printf("  battery %s%s  [power reply %s]\n", p && p->level ? (std::to_string(*p->level) + "%").c_str() : "n/a",
+                    p && p->charging ? " (charging)" : "", toHex(*raw).c_str());
+    } else {
+        std::printf("  battery: power read failed: %s\n", s.error().c_str());
+    }
     std::printf("  config block: %s\n", toHex(*block).c_str());
 }
 

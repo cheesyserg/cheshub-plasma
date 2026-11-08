@@ -8,10 +8,8 @@ ExecStart=@BATTERYD_PATH@
 Restart=on-failure
 RestartSec=5
 
-# Needs /dev/uhid (root-only) and the devices' hidraw nodes; nothing else.
-DevicePolicy=closed
-DeviceAllow=/dev/uhid rw
-DeviceAllow=char-hidraw rw
+# Needs /dev/uhid (root-only) and the devices' hidraw nodes. No device
+# allow-list: hidraw nodes come and go with hotplug.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
