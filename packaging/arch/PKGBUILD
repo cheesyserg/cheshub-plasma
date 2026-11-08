@@ -10,6 +10,7 @@ license=('GPL-3.0-or-later')
 depends=('kcmutils' 'ki18n' 'kcoreaddons' 'kirigami' 'qt6-base' 'qt6-declarative' 'systemd')
 makedepends=('cmake' 'extra-cmake-modules')
 install=cheshub-plasma.install
+options=('!debug')
 
 _src="$startdir/../.."
 

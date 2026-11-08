@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container: debian:trixie
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install build dependencies
         run: |
           apt-get update
@@ -35,7 +35,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Package
         run: cd build && cpack -G DEB
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: cheshub-plasma-deb
           path: build/*.deb
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install build dependencies
         run: |
           dnf install -y gcc-c++ cmake make rpm-build extra-cmake-modules \
@@ -60,7 +60,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Package
         run: cd build && cpack -G RPM
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: cheshub-plasma-rpm
           path: build/*.rpm
@@ -75,14 +75,14 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed base-devel git cmake extra-cmake-modules \
             qt6-base qt6-declarative kcmutils ki18n kcoreaddons kirigami
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build package (makepkg runs the tests in check())
         run: |
           useradd -m builder
           chown -R builder "$GITHUB_WORKSPACE"
           cd packaging/arch
           su builder -c "makepkg --noconfirm --nodeps --force"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: cheshub-plasma-arch
           path: packaging/arch/*.pkg.tar.zst
@@ -96,7 +96,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true

@@ -63,28 +63,35 @@ KCM.SimpleKCM {
         }
     }
 
-    Kirigami.PlaceholderMessage {
-        anchors.centerIn: parent
-        width: parent.width - Kirigami.Units.gridUnit * 4
-        visible: root.devices.length === 0
-        icon.name: "input-mouse"
-        text: i18nc("@info:placeholder", "No supported device found")
-        explanation: xi18nc("@info:usagetip",
-            "Plug in a TECKNET TK-GM012 mouse or an iLovbee B75 keyboard (or its 2.4 GHz receiver).<nl/><nl/>"
-            + "If it is plugged in but not listed, close other configuration tools and make sure the "
-            + "<filename>70-cheshub-plasma.rules</filename> udev rule is installed, then re-plug the device.")
-        helpfulAction: Kirigami.Action {
-            icon.name: "view-refresh"
-            text: i18nc("@action:button", "Search Again")
-            onTriggered: kcm.manager.rescan()
-        }
-    }
+    // One content item: Kirigami scrollable pages expect a single child.
+    ColumnLayout {
+        spacing: 0
 
-    Loader {
-        id: page
-        width: parent.width
-        active: root.currentDevice !== null
-        sourceComponent: root.currentDevice && root.currentDevice.kind === "keyboard" ? keyboardPage : mousePage
+        Kirigami.PlaceholderMessage {
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.gridUnit * 4
+            Layout.leftMargin: Kirigami.Units.gridUnit * 2
+            Layout.rightMargin: Kirigami.Units.gridUnit * 2
+            visible: root.devices.length === 0
+            icon.name: "input-mouse"
+            text: i18nc("@info:placeholder", "No supported device found")
+            explanation: xi18nc("@info:usagetip",
+                "Plug in a TECKNET TK-GM012 mouse or an iLovbee B75 keyboard (or its 2.4 GHz receiver).<nl/><nl/>"
+                + "If it is plugged in but not listed, close other configuration tools and make sure the "
+                + "<filename>70-cheshub-plasma.rules</filename> udev rule is installed, then re-plug the device.")
+            helpfulAction: Kirigami.Action {
+                icon.name: "view-refresh"
+                text: i18nc("@action:button", "Search Again")
+                onTriggered: kcm.manager.rescan()
+            }
+        }
+
+        Loader {
+            Layout.fillWidth: true
+            active: root.currentDevice !== null
+            visible: active
+            sourceComponent: root.currentDevice && root.currentDevice.kind === "keyboard" ? keyboardPage : mousePage
+        }
     }
 
     Component {
